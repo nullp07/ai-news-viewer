@@ -60,21 +60,27 @@ export function AnalyzedTable({
         <Table className="table-fixed w-full">
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
-              <TableHead className="w-[28%]">Title</TableHead>
+              <TableHead className="w-auto sm:w-[28%]">Title</TableHead>
               <TableHead className="hidden md:table-cell w-[12%]">Source</TableHead>
-              <TableHead className="w-[14%] sm:w-[12%]">Sentiment</TableHead>
-              <TableHead className="w-[34%] sm:w-[30%]">Summary</TableHead>
+              <TableHead className="hidden sm:table-cell w-[14%]">Sentiment</TableHead>
+              <TableHead className="hidden sm:table-cell w-[34%] md:w-[30%]">Summary</TableHead>
               <TableHead className="hidden lg:table-cell w-[10%]">Analyzed</TableHead>
-              <TableHead className="w-[14%] sm:w-[8%] text-right">Actions</TableHead>
+              <TableHead className="w-[88px] sm:w-[10%] md:w-[8%] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {[1, 2, 3].map((i) => (
               <TableRow key={i}>
-                <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-full" />
+                  <div className="mt-2 space-y-1.5 sm:hidden">
+                    <Skeleton className="h-5 w-20" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                </TableCell>
                 <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-16" /></TableCell>
-                <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-full" /></TableCell>
+                <TableCell className="hidden sm:table-cell"><Skeleton className="h-6 w-20" /></TableCell>
+                <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-full" /></TableCell>
                 <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-16" /></TableCell>
                 <TableCell className="text-right"><Skeleton className="h-8 w-14 ml-auto" /></TableCell>
               </TableRow>
@@ -100,77 +106,94 @@ export function AnalyzedTable({
   return (
     <>
       <div className="rounded-lg border overflow-hidden">
-        <div>
-          <Table className="table-fixed w-full">
-            <TableHeader className="sticky top-0 bg-background z-10">
-              <TableRow>
-                <TableHead className="w-[28%]">Title</TableHead>
-                <TableHead className="hidden md:table-cell w-[12%]">Source</TableHead>
-                <TableHead className="w-[14%] sm:w-[12%]">Sentiment</TableHead>
-                <TableHead className="w-[34%] sm:w-[30%]">Summary</TableHead>
-                <TableHead className="hidden lg:table-cell w-[10%]">Analyzed</TableHead>
-                <TableHead className="w-[14%] sm:w-[8%] text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {articles.map((article, index) => (
-                <TableRow
-                  key={article.id}
-                  className={index % 2 === 1 ? "bg-muted/30" : ""}
-                >
-                  <TableCell className="align-top">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="font-medium line-clamp-2 cursor-help break-words">
-                          {article.title}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-sm">
+        <Table className="table-fixed w-full">
+          <TableHeader className="sticky top-0 bg-background z-10">
+            <TableRow>
+              {/* On mobile the Title cell carries the sentiment + summary
+                  inline, so the dedicated columns hide until sm. */}
+              <TableHead className="w-auto sm:w-[28%]">Title</TableHead>
+              <TableHead className="hidden md:table-cell w-[12%]">Source</TableHead>
+              <TableHead className="hidden sm:table-cell w-[14%]">Sentiment</TableHead>
+              <TableHead className="hidden sm:table-cell w-[34%] md:w-[30%]">Summary</TableHead>
+              <TableHead className="hidden lg:table-cell w-[10%]">Analyzed</TableHead>
+              <TableHead className="w-[88px] sm:w-[10%] md:w-[8%] text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {articles.map((article, index) => (
+              <TableRow
+                key={article.id}
+                className={index % 2 === 1 ? "bg-muted/30" : ""}
+              >
+                <TableCell className="align-top">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="font-medium line-clamp-2 cursor-help break-words">
                         {article.title}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell align-top">
-                    <Badge variant="outline" className="text-xs max-w-full truncate inline-block">
-                      {article.source}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="align-top">
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-sm">
+                      {article.title}
+                    </TooltipContent>
+                  </Tooltip>
+
+                  {/* Mobile-only: stack sentiment + summary under the title
+                      so the row stays single-column at narrow widths. */}
+                  <div className="mt-2 flex flex-col gap-1.5 sm:hidden">
                     <SentimentBadge
                       sentiment={article.analysis.sentiment}
                       score={article.analysis.sentimentScore}
                       size="sm"
                     />
-                  </TableCell>
-                  <TableCell className="align-top">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <p className="text-sm text-muted-foreground line-clamp-2 cursor-help break-words">
-                          {article.analysis.summary}
-                        </p>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-md">
+                    <p className="text-xs text-muted-foreground line-clamp-2 break-words">
+                      {article.analysis.summary}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/80 truncate">
+                      {article.source} · {formatRelativeTime(article.analyzedAt)}
+                    </p>
+                  </div>
+                </TableCell>
+
+                <TableCell className="hidden md:table-cell align-top">
+                  <Badge variant="outline" className="text-xs max-w-full truncate inline-block">
+                    {article.source}
+                  </Badge>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell align-top">
+                  <SentimentBadge
+                    sentiment={article.analysis.sentiment}
+                    score={article.analysis.sentimentScore}
+                    size="sm"
+                  />
+                </TableCell>
+                <TableCell className="hidden sm:table-cell align-top">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <p className="text-sm text-muted-foreground line-clamp-2 cursor-help break-words">
                         {article.analysis.summary}
-                      </TooltipContent>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground whitespace-nowrap align-top">
-                    {formatRelativeTime(article.analyzedAt)}
-                  </TableCell>
-                  <TableCell className="text-right align-top">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedArticle(article)}
-                    >
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                      </p>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-md">
+                      {article.analysis.summary}
+                    </TooltipContent>
+                  </Tooltip>
+                </TableCell>
+                <TableCell className="hidden lg:table-cell text-sm text-muted-foreground whitespace-nowrap align-top">
+                  {formatRelativeTime(article.analyzedAt)}
+                </TableCell>
+                <TableCell className="text-right align-top">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedArticle(article)}
+                  >
+                    View
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
 
       {hasMore && onLoadMore && (
