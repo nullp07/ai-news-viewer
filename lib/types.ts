@@ -13,6 +13,8 @@ export interface Analysis {
   summary: string;
   sentiment: Sentiment;
   sentimentScore: number;
+  /** 1–3 canonical topic tags (e.g. "Tesla", "AI Regulation"). Optional for legacy docs. */
+  topics?: string[];
 }
 
 export interface ReviewedArticle extends Article {

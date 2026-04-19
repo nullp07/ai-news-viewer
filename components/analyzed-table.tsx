@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileSearch } from "lucide-react";
+import { FileSearch, Loader2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -25,6 +25,9 @@ import type { ReviewedArticle } from "@/lib/types";
 interface AnalyzedTableProps {
   articles: ReviewedArticle[];
   isLoading: boolean;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 function formatRelativeTime(dateString: string): string {
@@ -42,31 +45,37 @@ function formatRelativeTime(dateString: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function AnalyzedTable({ articles, isLoading }: AnalyzedTableProps) {
+export function AnalyzedTable({
+  articles,
+  isLoading,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
+}: AnalyzedTableProps) {
   const [selectedArticle, setSelectedArticle] = useState<ReviewedArticle | null>(null);
 
   if (isLoading) {
     return (
       <div className="rounded-lg border">
-        <Table>
+        <Table className="table-fixed w-full">
           <TableHeader className="sticky top-0 bg-background z-10">
             <TableRow>
-              <TableHead className="w-[30%]">Title</TableHead>
-              <TableHead className="w-[10%]">Source</TableHead>
-              <TableHead className="w-[12%]">Sentiment</TableHead>
-              <TableHead className="w-[30%]">Summary</TableHead>
-              <TableHead className="w-[10%]">Analyzed</TableHead>
-              <TableHead className="w-[8%] text-right">Actions</TableHead>
+              <TableHead className="w-[28%]">Title</TableHead>
+              <TableHead className="hidden md:table-cell w-[12%]">Source</TableHead>
+              <TableHead className="w-[14%] sm:w-[12%]">Sentiment</TableHead>
+              <TableHead className="w-[34%] sm:w-[30%]">Summary</TableHead>
+              <TableHead className="hidden lg:table-cell w-[10%]">Analyzed</TableHead>
+              <TableHead className="w-[14%] sm:w-[8%] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {[1, 2, 3].map((i) => (
               <TableRow key={i}>
                 <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                <TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-16" /></TableCell>
                 <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-full" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-16" /></TableCell>
                 <TableCell className="text-right"><Skeleton className="h-8 w-14 ml-auto" /></TableCell>
               </TableRow>
             ))}
@@ -91,16 +100,16 @@ export function AnalyzedTable({ articles, isLoading }: AnalyzedTableProps) {
   return (
     <>
       <div className="rounded-lg border overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
+        <div>
+          <Table className="table-fixed w-full">
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
-                <TableHead className="w-[30%]">Title</TableHead>
-                <TableHead className="w-[10%]">Source</TableHead>
-                <TableHead className="w-[12%]">Sentiment</TableHead>
-                <TableHead className="w-[30%]">Summary</TableHead>
-                <TableHead className="w-[10%]">Analyzed</TableHead>
-                <TableHead className="w-[8%] text-right">Actions</TableHead>
+                <TableHead className="w-[28%]">Title</TableHead>
+                <TableHead className="hidden md:table-cell w-[12%]">Source</TableHead>
+                <TableHead className="w-[14%] sm:w-[12%]">Sentiment</TableHead>
+                <TableHead className="w-[34%] sm:w-[30%]">Summary</TableHead>
+                <TableHead className="hidden lg:table-cell w-[10%]">Analyzed</TableHead>
+                <TableHead className="w-[14%] sm:w-[8%] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -109,10 +118,10 @@ export function AnalyzedTable({ articles, isLoading }: AnalyzedTableProps) {
                   key={article.id}
                   className={index % 2 === 1 ? "bg-muted/30" : ""}
                 >
-                  <TableCell>
+                  <TableCell className="align-top">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="font-medium line-clamp-1 cursor-help">
+                        <span className="font-medium line-clamp-2 cursor-help break-words">
                           {article.title}
                         </span>
                       </TooltipTrigger>
@@ -121,22 +130,22 @@ export function AnalyzedTable({ articles, isLoading }: AnalyzedTableProps) {
                       </TooltipContent>
                     </Tooltip>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs">
+                  <TableCell className="hidden md:table-cell align-top">
+                    <Badge variant="outline" className="text-xs max-w-full truncate inline-block">
                       {article.source}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="align-top">
                     <SentimentBadge
                       sentiment={article.analysis.sentiment}
                       score={article.analysis.sentimentScore}
                       size="sm"
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="align-top">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <p className="text-sm text-muted-foreground line-clamp-2 cursor-help">
+                        <p className="text-sm text-muted-foreground line-clamp-2 cursor-help break-words">
                           {article.analysis.summary}
                         </p>
                       </TooltipTrigger>
@@ -145,10 +154,10 @@ export function AnalyzedTable({ articles, isLoading }: AnalyzedTableProps) {
                       </TooltipContent>
                     </Tooltip>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                  <TableCell className="hidden lg:table-cell text-sm text-muted-foreground whitespace-nowrap align-top">
                     {formatRelativeTime(article.analyzedAt)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right align-top">
                     <Button
                       variant="outline"
                       size="sm"
@@ -163,6 +172,26 @@ export function AnalyzedTable({ articles, isLoading }: AnalyzedTableProps) {
           </Table>
         </div>
       </div>
+
+      {hasMore && onLoadMore && (
+        <div className="mt-4 flex justify-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+          >
+            {isLoadingMore ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span className="ml-2">Loading...</span>
+              </>
+            ) : (
+              "Load more"
+            )}
+          </Button>
+        </div>
+      )}
 
       <ArticleDialog
         article={selectedArticle}

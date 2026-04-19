@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
+import { CursorGlow } from '@/components/cursor-glow'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -32,10 +33,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
-  ],
+  themeColor: '#0a0a0a',
+  colorScheme: 'dark',
   width: 'device-width',
   initialScale: 1,
 }
@@ -46,14 +45,16 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased bg-background">
+    <html lang="en" className="dark" suppressHydrationWarning>
+      <body className="font-sans antialiased bg-background isolate">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
+          forcedTheme="dark"
+          enableSystem={false}
           disableTransitionOnChange
         >
+          <CursorGlow />
           {children}
           <Toaster position="bottom-right" />
         </ThemeProvider>

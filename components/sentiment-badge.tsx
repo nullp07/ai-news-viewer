@@ -39,6 +39,7 @@ export function SentimentBadge({ sentiment, score, size = "md" }: SentimentBadge
       <span
         className={cn(
           "inline-flex items-center rounded-full font-medium capitalize",
+          "transition-transform duration-200 hover:scale-105",
           config.bgClass,
           config.textClass,
           sizeClasses[size]

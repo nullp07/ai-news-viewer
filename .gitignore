@@ -15,3 +15,7 @@ node_modules
 .next/
 .DS_Store
 .vercel
+
+# Tooling caches / build artifacts
+.pnpm-store/
+*.tsbuildinfo
