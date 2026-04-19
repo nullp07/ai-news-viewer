@@ -183,7 +183,7 @@ export default function SmartReviewer() {
   );
 
   return (
-    <main className="relative min-h-screen overflow-hidden">
+    <main className="relative min-h-screen overflow-x-clip">
       {/* Animated gradient blobs behind the header. Pure CSS, no perf hit. */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[480px] overflow-hidden">
         <div className="absolute -top-32 left-1/4 -translate-x-1/2 size-[420px] rounded-full bg-indigo-500/20 blur-3xl animate-blob" />

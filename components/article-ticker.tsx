@@ -19,18 +19,26 @@ export function ArticleTicker({ articles, isLoading }: ArticleTickerProps) {
   // Take the most recent 12 — enough to fill the strip without it looping in 2 seconds.
   const items = useMemo(() => articles.slice(0, 12), [articles]);
 
+  // Sticky positioning so the ticker stays visible while scrolling the page.
+  // top-2 keeps a small breathing gap below the viewport edge; z-30 sits above
+  // the table sticky header (z-10) and the blob halo, but below modals.
+  // Bumped background opacity + stronger blur so content scrolling beneath
+  // doesn't bleed through and make the text hard to read.
+  const stickyClasses =
+    "sticky top-2 z-30 mb-6 sm:mb-8 rounded-full border bg-card/85 backdrop-blur-md shadow-sm";
+
   if (isLoading) {
     return (
       <div
         aria-hidden
-        className="rounded-full border bg-card/40 backdrop-blur-sm h-10 mb-6 animate-pulse"
+        className={`${stickyClasses} h-10 animate-pulse`}
       />
     );
   }
 
   if (items.length === 0) {
     return (
-      <div className="rounded-full border bg-card/40 backdrop-blur-sm h-10 mb-6 flex items-center justify-center gap-2 px-4 text-xs text-muted-foreground">
+      <div className={`${stickyClasses} h-10 flex items-center justify-center gap-2 px-4 text-xs text-muted-foreground`}>
         <TrendingUp className="size-3.5 text-indigo-500" />
         <span>Analyze your first article to populate the live ticker</span>
       </div>
@@ -44,9 +52,9 @@ export function ArticleTicker({ articles, isLoading }: ArticleTickerProps) {
   return (
     <section
       aria-label="Recently analyzed articles"
-      className="relative mb-8 rounded-full border bg-card/40 backdrop-blur-sm overflow-hidden group"
+      className={`${stickyClasses} overflow-hidden group`}
     >
-      <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center gap-1.5 px-3 bg-gradient-to-r from-card via-card/95 to-transparent pr-6 text-[11px] uppercase tracking-wider font-semibold text-indigo-500">
+      <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center gap-1.5 px-3 bg-gradient-to-r from-card via-card/90 to-transparent pr-6 text-[11px] uppercase tracking-wider font-semibold text-indigo-500">
         <TrendingUp className="size-3.5" />
         <span className="hidden sm:inline">Live</span>
       </div>
