@@ -115,16 +115,21 @@ A few choices that shaped the backend, plus the trade-offs they cost:
 ### Indexes (created lazily, once per process)
 - `{ analyzedAt: -1 }` — backs the list query and cursor pagination.
 - `{ title: "text" }` — backs `/api/suggestions`. Suggestion queries use `$text`
-  with a prefix-wildcard on the last token (`tes*` → "Tesla"). Queries shorter
-  than 2 chars or queries that find no matches fall back to a bounded regex
-  scan, so behavior is graceful at the edges.
+  with a prefix-wildcard on the last token (`tes*` → "Tesla"). The route layer
+  rejects sub-2-char queries, so `$text` is sufficient on its own.
 
-### Schema validation
-A `$jsonSchema` validator is applied via `collMod` with
-`validationLevel: "moderate"` and `validationAction: "warn"`. New writes are
-checked against the expected shape; older documents missing newer fields keep
-working. Move to `validationAction: "error"` once you're confident no callers
-send legacy shapes.
+### Schema authority
+Document shape is enforced at the application boundary by `zod` (in the
+analyze route + the OpenAI response validator). This app is the only writer
+to the collection, so a collection-level `$jsonSchema` validator would add
+ceremony without catching anything in practice. If you ever open the database
+to additional writers, add a strict validator via a one-off migration script.
+
+### Persisted shape
+`description` from GNews is consumed by OpenAI but **not** persisted — the AI
+summary replaces it for display, so storing both would just create stale-data
+risk. The persisted document is `{ _id, title, url, source, publishedAt,
+analysis, analyzedAt }`.
 
 ### Rate limiting
 In-memory token-bucket per `(scope, IP)` in `lib/rate-limit.ts`:
@@ -144,13 +149,14 @@ Cloudflare Rate Limiting backend.
 `/api/articles` uses cursor pagination on `analyzedAt`. The list page loads 50
 docs at a time and the table exposes a "Load more" button. There is no TTL on
 analyzed documents — the collection grows monotonically. For long-running
-deploys, add a TTL index on `firstAnalyzedAt` or an archival job; for the case
+deploys, add a TTL index on `analyzedAt` or an archival job; for the case
 study scope, monotonic growth is fine.
 
 ### Trust boundary on article metadata
-`POST /api/articles/analyze` accepts `title`, `description`, `url`, `source`,
-and `publishedAt` from the client and stores them as-is. A malicious caller
-could store fabricated text attributed to a legitimate source.
+`POST /api/articles/analyze` accepts `title`, `url`, `source`, and
+`publishedAt` from the client and stores them as-is (`description` is consumed
+by the LLM but discarded after). A malicious caller could store fabricated
+metadata attributed to a legitimate source.
 
 This is a deliberate trade-off for the case study:
 - The alternative (server re-fetches every article from GNews using the id

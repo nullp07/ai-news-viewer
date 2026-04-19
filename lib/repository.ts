@@ -11,85 +11,27 @@ export const MAX_PAGE_SIZE = 100;
 // `id` to keep the client-facing shape in sync with `lib/types.ts`.
 type ReviewedDoc = Omit<ReviewedArticle, "id"> & { _id: string };
 
-// Lazy one-time setup: indexes + JSON schema validator. Runs once per process.
-let _setupPromise: Promise<void> | null = null;
+// One-time index creation per process. `createIndex` is idempotent in Mongo,
+// so a benign race between two concurrent first calls is harmless — the flag
+// is just an optimization to skip the round-trip on subsequent requests.
+let _indexesEnsured = false;
 
-async function ensureSetup(col: Collection<ReviewedDoc & Document>): Promise<void> {
-  if (_setupPromise) return _setupPromise;
-
-  _setupPromise = (async () => {
-    // Indexes are idempotent; createIndex returns the existing one if present.
-    await Promise.all([
-      col.createIndex({ analyzedAt: -1 }, { name: "analyzedAt_-1" }),
-      col.createIndex(
-        { title: "text" },
-        { name: "title_text", default_language: "english" },
-      ),
-    ]);
-
-    // Schema validator. We use `validationLevel: "moderate"` so existing docs
-    // missing newer fields (e.g. `analysis.topics`) keep working; only inserts
-    // and updates to valid docs are validated.
-    try {
-      const db = await getDb();
-      await db.command({
-        collMod: COLLECTION,
-        validator: {
-          $jsonSchema: {
-            bsonType: "object",
-            required: [
-              "_id",
-              "title",
-              "url",
-              "source",
-              "publishedAt",
-              "analysis",
-              "analyzedAt",
-            ],
-            properties: {
-              _id: { bsonType: "string", minLength: 1 },
-              title: { bsonType: "string", minLength: 1 },
-              description: { bsonType: "string" },
-              url: { bsonType: "string", minLength: 1 },
-              source: { bsonType: "string", minLength: 1 },
-              publishedAt: { bsonType: "string" },
-              analyzedAt: { bsonType: "string" },
-              analysis: {
-                bsonType: "object",
-                required: ["summary", "sentiment", "sentimentScore"],
-                properties: {
-                  summary: { bsonType: "string", minLength: 1 },
-                  sentiment: { enum: ["positive", "neutral", "negative"] },
-                  sentimentScore: { bsonType: "double", minimum: 0, maximum: 1 },
-                  topics: {
-                    bsonType: "array",
-                    items: { bsonType: "string", minLength: 1 },
-                    maxItems: 10,
-                  },
-                },
-              },
-            },
-          },
-        },
-        validationLevel: "moderate",
-        validationAction: "warn",
-      });
-    } catch (err) {
-      // collMod requires the collection to exist. On a fresh DB this fails
-      // silently — the validator gets re-applied on the next request after
-      // the first insert creates the collection.
-      console.warn("[repository] schema validator setup skipped:", (err as Error).message);
-    }
-  })();
-
-  return _setupPromise;
+async function ensureIndexes(col: Collection<ReviewedDoc & Document>): Promise<void> {
+  if (_indexesEnsured) return;
+  await Promise.all([
+    col.createIndex({ analyzedAt: -1 }, { name: "analyzedAt_-1" }),
+    col.createIndex(
+      { title: "text" },
+      { name: "title_text", default_language: "english" },
+    ),
+  ]);
+  _indexesEnsured = true;
 }
 
 async function collection(): Promise<Collection<ReviewedDoc & Document>> {
   const db = await getDb();
   const col = db.collection<ReviewedDoc & Document>(COLLECTION);
-  // Fire-and-forget on the first call; subsequent calls await the cached promise.
-  await ensureSetup(col);
+  await ensureIndexes(col);
   return col;
 }
 
@@ -142,38 +84,25 @@ export async function findReviewedById(id: string): Promise<ReviewedArticle | nu
 
 export async function searchReviewedTitles(query: string, limit = 5): Promise<string[]> {
   const trimmed = query.trim();
-  if (!trimmed) return [];
+  if (trimmed.length < 2) return [];
 
-  const col = await collection();
+  // Wildcard the last token so partials like "tes" match "Tesla" via the title
+  // text index. The route layer already rejects sub-2-char queries, so $text
+  // is sufficient on its own — no regex fallback needed.
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  const last = tokens[tokens.length - 1];
+  const search = [...tokens.slice(0, -1), `${last}*`].join(" ");
 
-  // For very short queries (1 char), $text needs a whole word — fall back to a
-  // bounded regex scan. For 2+ chars we wildcard the last token so partials
-  // like "tes" match "Tesla" via the title text index.
-  let docs: Array<{ title?: string }> = [];
-  if (trimmed.length >= 2) {
-    const tokens = trimmed.split(/\s+/).filter(Boolean);
-    const last = tokens[tokens.length - 1];
-    const search = [...tokens.slice(0, -1), `${last}*`].join(" ");
-    docs = await col
-      .find({ $text: { $search: search } }, { projection: { title: 1, _id: 0 } })
-      .sort({ analyzedAt: -1 })
-      .limit(limit)
-      .toArray();
-  }
-
-  if (docs.length === 0) {
-    const safe = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    docs = await col
-      .find({ title: { $regex: safe, $options: "i" } }, { projection: { title: 1, _id: 0 } })
-      .sort({ analyzedAt: -1 })
-      .limit(limit)
-      .toArray();
-  }
+  const docs = await (await collection())
+    .find({ $text: { $search: search } }, { projection: { title: 1, _id: 0 } })
+    .sort({ analyzedAt: -1 })
+    .limit(limit)
+    .toArray();
 
   const seen = new Set<string>();
   const out: string[] = [];
   for (const d of docs) {
-    const t = d.title;
+    const t = (d as { title?: string }).title;
     if (t && !seen.has(t)) {
       seen.add(t);
       out.push(t);
@@ -186,17 +115,9 @@ export async function upsertReviewedArticle(article: ReviewedArticle): Promise<R
   const col = await collection();
   const { id, ...rest } = article;
 
-  await col.updateOne(
-    { _id: id },
-    {
-      // `analyzedAt` here is treated as "lastAnalyzedAt"; we also stamp
-      // `firstAnalyzedAt` exactly once on insert so we don't lose the
-      // original analysis time on re-runs.
-      $set: { ...rest },
-      $setOnInsert: { _id: id, firstAnalyzedAt: rest.analyzedAt },
-    },
-    { upsert: true },
-  );
+  // Upsert with just $set: when inserting, Mongo automatically uses the filter
+  // (`{ _id: id }`) to populate the new doc's _id, so $setOnInsert is redundant.
+  await col.updateOne({ _id: id }, { $set: rest }, { upsert: true });
 
   return article;
 }

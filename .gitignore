@@ -19,3 +19,5 @@ node_modules
 # Tooling caches / build artifacts
 .pnpm-store/
 *.tsbuildinfo
+
+DESIGN_NOTES.md

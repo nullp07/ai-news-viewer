@@ -17,7 +17,9 @@ export interface Analysis {
   topics?: string[];
 }
 
-export interface ReviewedArticle extends Article {
+// `description` is consumed by the LLM at analyze time but never shown for
+// already-analyzed articles (the AI summary replaces it), so we don't persist it.
+export interface ReviewedArticle extends Omit<Article, "description"> {
   analysis: Analysis;
   analyzedAt: string;
 }

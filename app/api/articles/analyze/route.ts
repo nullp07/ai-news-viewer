@@ -66,8 +66,11 @@ export async function POST(request: Request) {
     // 4. Analyze + persist.
     const analysis = await analyzeWithOpenAI(article);
 
+    // `description` is consumed by the LLM above; we don't persist it
+    // because it's never displayed for already-analyzed articles.
+    const { description: _description, ...persistable } = article;
     const reviewed: ReviewedArticle = {
-      ...article,
+      ...persistable,
       analysis,
       analyzedAt: new Date().toISOString(),
     };
